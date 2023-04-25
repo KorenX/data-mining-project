@@ -3,7 +3,7 @@ import DataCleaning
 from sklearn.model_selection import train_test_split
 from sklearn.tree import DecisionTreeClassifier, export_graphviz
 from sklearn.ensemble import AdaBoostClassifier, RandomForestClassifier
-from sklearn.metrics import accuracy_score, precision_score
+from sklearn.metrics import accuracy_score, precision_score, recall_score, f1_score, roc_auc_score
 import graphviz
 
 def clean_db(db_name: str, db_new_name: str):
@@ -16,6 +16,13 @@ def clean_db(db_name: str, db_new_name: str):
     
     db.to_excel(db_new_name, index=False)
 
+def print_scores(t_test, t_prediction):
+    print(f"accuracy: {accuracy_score(t_test, t_prediction)}")
+    print(f"precision: {precision_score(t_test, t_prediction)}")
+    print(f"recall: {recall_score(t_test, t_prediction)}")
+    print(f"f1: {f1_score(t_test, t_prediction)}")
+    print(f"roc auc: {roc_auc_score(t_test, t_prediction)}")
+
 #GAIN DECISION TREE
 def gain_tree(f_train, f_test, t_train, t_test):
     tree_model = DecisionTreeClassifier(criterion="entropy", max_depth=None)
@@ -27,9 +34,8 @@ def gain_tree(f_train, f_test, t_train, t_test):
     graph.render('decision_tree_gain', view=False)
 
     t_prediction = tree_model.predict(f_test)
-    accuracy = accuracy_score(t_test, t_prediction)
-    percision = precision_score(t_test, t_prediction)
-    print(f"gain scores: {accuracy} {percision}")
+    print(f"###Gain Scores:")
+    print_scores(t_test, t_prediction)
 
 #GINI DECISION TREE
 def gini_tree(f_train, f_test, t_train, t_test):
@@ -42,9 +48,8 @@ def gini_tree(f_train, f_test, t_train, t_test):
     graph.render('decision_tree_gini', view=False)
 
     t_prediction = tree_model.predict(f_test)
-    accuracy = accuracy_score(t_test, t_prediction)
-    percision = precision_score(t_test, t_prediction)
-    print(f"gini scores: {accuracy} {percision}")
+    print(f"###Gini Scores:")
+    print_scores(t_test, t_prediction)
 
 #ADABOOST DECISION TREE
 def adaboost_tree(f_train, f_test, t_train, t_test):
@@ -59,9 +64,8 @@ def adaboost_tree(f_train, f_test, t_train, t_test):
     graph.render('decision_tree_adaboost', view=False)
 
     t_prediction = ada_model.predict(f_test)
-    accuracy = accuracy_score(t_test, t_prediction)
-    percision = precision_score(t_test, t_prediction)
-    print(f"adaboost scores: {accuracy} {percision}")
+    print(f"###AdaBoost Scores:")
+    print_scores(t_test, t_prediction)
 
 #RANDOM DECISION FOREST
 def random_forest(f_train, f_test, t_train, t_test):
@@ -74,9 +78,8 @@ def random_forest(f_train, f_test, t_train, t_test):
     graph.render('decision_forest_gain', view=False)
 
     t_prediction = forest_model.predict(f_test)
-    accuracy = accuracy_score(t_test, t_prediction)
-    percision = precision_score(t_test, t_prediction)
-    print(f"forest scores: {accuracy} {percision}")
+    print(f"###Random Forest Scores:")
+    print_scores(t_test, t_prediction)
 
 def train_models(db_name: str):
     db = pandas.read_excel(db_name,  index_col=False).drop("id", axis=1)
@@ -86,8 +89,8 @@ def train_models(db_name: str):
 
     f_train, f_test, t_train, t_test = train_test_split(features, target, test_size=0.33, random_state=42)
     
-    # gain_tree(f_train, f_test, t_train, t_test)
-    # gini_tree(f_train, f_test, t_train, t_test)
+    gain_tree(f_train, f_test, t_train, t_test)
+    gini_tree(f_train, f_test, t_train, t_test)
     adaboost_tree(f_train, f_test, t_train, t_test)
     random_forest(f_train, f_test, t_train, t_test)
 
