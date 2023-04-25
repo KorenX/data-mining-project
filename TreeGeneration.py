@@ -25,7 +25,7 @@ def print_scores(t_test, t_prediction):
 
 #GAIN DECISION TREE
 def gain_tree(f_train, f_test, t_train, t_test):
-    tree_model = DecisionTreeClassifier(criterion="entropy", max_depth=None)
+    tree_model = DecisionTreeClassifier(criterion="entropy", min_samples_leaf=1, max_depth=None, max_leaf_nodes=None)
     tree_model.fit(f_train, t_train)
 
     graph_data = export_graphviz(tree_model, out_file=None, feature_names=f_train.columns, class_names=['0', '1'], filled=True)
