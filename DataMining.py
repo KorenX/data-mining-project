@@ -1,10 +1,20 @@
 import pandas
 import DataCleaning
+import graphviz
+import numpy
+import sys, os
 from sklearn.model_selection import train_test_split
 from sklearn.tree import DecisionTreeClassifier, export_graphviz
 from sklearn.ensemble import AdaBoostClassifier, RandomForestClassifier
-from sklearn.metrics import accuracy_score, precision_score, recall_score, f1_score, roc_auc_score
-import graphviz
+from sklearn.naive_bayes import GaussianNB
+from sklearn.neighbors import KNeighborsClassifier
+from sklearn.cluster import DBSCAN
+from sklearn.decomposition import PCA
+from sklearn.preprocessing import StandardScaler
+from sklearn.metrics import accuracy_score, precision_score, recall_score, f1_score, roc_auc_score, mean_squared_error, mean_absolute_error
+from keras.models import Sequential
+from keras.layers import Dense
+import matplotlib.pyplot as plt
 
 def clean_db(db_name: str, db_new_name: str):
     db = pandas.read_excel(db_name,  index_col=False)
@@ -16,12 +26,16 @@ def clean_db(db_name: str, db_new_name: str):
     
     db.to_excel(db_new_name, index=False)
 
-def print_scores(t_test, t_prediction):
+def print_binary_scores(t_test, t_prediction):
     print(f"accuracy: {accuracy_score(t_test, t_prediction)}")
     print(f"precision: {precision_score(t_test, t_prediction)}")
     print(f"recall: {recall_score(t_test, t_prediction)}")
     print(f"f1: {f1_score(t_test, t_prediction)}")
     print(f"roc auc: {roc_auc_score(t_test, t_prediction)}")
+
+def print_continuous_scores(t_test, t_prediction):
+    print(f"mae: {mean_absolute_error(t_test, t_prediction)}")
+    print(f"rmse: {numpy.sqrt(mean_squared_error(t_test, t_prediction))}")
 
 #GAIN DECISION TREE
 def gain_tree(f_train, f_test, t_train, t_test):
@@ -35,7 +49,7 @@ def gain_tree(f_train, f_test, t_train, t_test):
 
     t_prediction = tree_model.predict(f_test)
     print(f"###Gain Scores:")
-    print_scores(t_test, t_prediction)
+    print_binary_scores(t_test, t_prediction)
 
 #GINI DECISION TREE
 def gini_tree(f_train, f_test, t_train, t_test):
@@ -49,7 +63,7 @@ def gini_tree(f_train, f_test, t_train, t_test):
 
     t_prediction = tree_model.predict(f_test)
     print(f"###Gini Scores:")
-    print_scores(t_test, t_prediction)
+    print_binary_scores(t_test, t_prediction)
 
 #ADABOOST DECISION TREE
 def adaboost_tree(f_train, f_test, t_train, t_test):
@@ -65,7 +79,7 @@ def adaboost_tree(f_train, f_test, t_train, t_test):
 
     t_prediction = ada_model.predict(f_test)
     print(f"###AdaBoost Scores:")
-    print_scores(t_test, t_prediction)
+    print_binary_scores(t_test, t_prediction)
 
 #RANDOM DECISION FOREST
 def random_forest(f_train, f_test, t_train, t_test):
@@ -79,7 +93,73 @@ def random_forest(f_train, f_test, t_train, t_test):
 
     t_prediction = forest_model.predict(f_test)
     print(f"###Random Forest Scores:")
-    print_scores(t_test, t_prediction)
+    print_binary_scores(t_test, t_prediction)
+
+#KNN CLASSIFICATION MODULE
+def k_nearest_neighbors(f_train, f_test, t_train, t_test, k):
+    knn_model = KNeighborsClassifier(n_neighbors=k)
+    knn_model.fit(f_train, t_train)
+
+    t_prediction = knn_model.predict(f_test)
+    print(f"###K Nearest Neighbors Scores (k={k}):")
+    print_binary_scores(t_test, t_prediction)
+
+#NAIVE BAYES CLASSIFICATION MODULE
+def naive_bayes(f_train, f_test, t_train, t_test):
+    nb_model = GaussianNB()
+    nb_model.fit(f_train, t_train)
+
+    t_prediction = nb_model.predict(f_test)
+    print(f"###Naive Bayes Scores:")
+    print_binary_scores(t_test, t_prediction)
+
+#DBSCAN CLUSTERING MODULE
+def dbscan_clustering(features: pandas.DataFrame, max_dist, min_samples):
+    scaler_model = StandardScaler()
+    normalized_features = scaler_model.fit_transform(features)
+
+    pca = PCA(n_components=2)
+    reduced_features = pca.fit_transform(normalized_features)
+
+    dbscan_model = DBSCAN(eps=max_dist, min_samples=min_samples)
+    labels = dbscan_model.fit_predict(reduced_features)
+    unique_clusters = numpy.unique(labels[labels != -1])
+
+    for cluster in unique_clusters:
+        cluster_points = reduced_features[labels==cluster]
+        plt.scatter(cluster_points[:, 0], cluster_points[:, 1], label=f'Cluster {cluster}')
+
+
+    noise_points = reduced_features[labels == -1]
+    plt.scatter(noise_points[:, 0], noise_points[:, 1], color='black', label='Noise')
+
+    plt.xlabel("Normalized Vector 1")
+    plt.ylabel("Normalized Vector 2")
+    plt.title('DBSCAN Clustering')
+    plt.legend()
+
+    plt.savefig(f'dbscan_{max_dist}_{min_samples}.png')
+    plt.clf()
+
+#FFNN CLASSIFICATION MODULE
+def feed_forward_neural_network(f_train, f_test, t_train, t_test, layer_size, hidden_layers_amount, verbose=False):
+    if not verbose:
+        sys.stdout = open(os.devnull, 'w')
+    ffnn_model = Sequential()
+    ffnn_model.add(Dense(layer_size, activation='relu', input_dim=f_train.shape[1]))
+    for _ in range(hidden_layers_amount):
+        ffnn_model.add(Dense(layer_size, activation='relu'))
+    ffnn_model.add(Dense(1, activation='sigmoid'))
+
+    ffnn_model.compile(loss='mean_squared_error', optimizer="adam", metrics=['mean_squared_error'])
+
+    ffnn_model.fit(f_train, t_train, epochs=5, batch_size=40)
+
+    t_prediction = ffnn_model.predict(f_test)
+    if not verbose:
+        sys.stdout = sys.__stdout__
+    print(f"###FeedForward NeuralNetwork Scores ({hidden_layers_amount} hidden layers, {layer_size} neurons per):")
+    print_continuous_scores(t_test, t_prediction)
 
 def train_models(db_name: str):
     db = pandas.read_excel(db_name,  index_col=False).drop("id", axis=1)
@@ -93,8 +173,25 @@ def train_models(db_name: str):
     gini_tree(f_train, f_test, t_train, t_test)
     adaboost_tree(f_train, f_test, t_train, t_test)
     random_forest(f_train, f_test, t_train, t_test)
+    naive_bayes(f_train, f_test, t_train, t_test)
+    k_nearest_neighbors(f_train, f_test, t_train, t_test, 1)
+    k_nearest_neighbors(f_train, f_test, t_train, t_test, 5)
+    dbscan_clustering(features, 0.5, 4)
+    dbscan_clustering(features, 0.75, 4)
+
+    db = DataCleaning.convert_numeric_to_continuous(db)
+
+    features = db.drop("classification", axis=1)
+    target = db["classification"]
+    
+    f_train, f_test, t_train, t_test = train_test_split(features, target, test_size=0.33, random_state=42)
+
+    feed_forward_neural_network(f_train, f_test, t_train, t_test, 15, 1)
+    feed_forward_neural_network(f_train, f_test, t_train, t_test, 30, 2)
+    feed_forward_neural_network(f_train, f_test, t_train, t_test, 45, 3)
+    feed_forward_neural_network(f_train, f_test, t_train, t_test, 15, 5)
 
 
 if __name__ == "__main__":
-    clean_db("OriginalDB.xlsx", "FilteredDB.xlsx")
+    # clean_db("OriginalDB.xlsx", "FilteredDB.xlsx")
     train_models("FilteredDB.xlsx")

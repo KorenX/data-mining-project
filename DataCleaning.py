@@ -11,6 +11,7 @@ missing_values = ("?",)
 ranges_dict = {"blood pressure" : (50, 180), "blood glucose random": (70, 490), "serum creatinine": (0.4, 10), "sodium" : (104, 163), "potassium": (2.5, 7.6), "hemoglobin": (6, 17.8), "white blood cell count": (2200, 16700), "red blood cell count": (2.1, 6.5)}
 numeric_fields = ["age", "blood pressure", "specific gravity", "albumin", "sugar", "blood glucose random", "serum creatinine", "sodium", "potassium", "hemoglobin", "packed cell volume", "red blood cell count", "white blood cell count"]
 categoric_fields = ["red blood cells", "pus cell", "pus cell clumps", "bacteria", "diabetes mellitus", "coronary artery disease", "appetite", "pedal edema", "anemia", "classification"]
+numeric_fields = categoric_fields + ["sugar", "albumin"]
 positive_values = ["yes", "normal", "present", "good", "ckd"]
 
 def remove_out_of_range(db : pandas.DataFrame) -> pandas.DataFrame:
@@ -43,6 +44,13 @@ def convert_categories_to_binary(db: pandas.DataFrame) -> pandas.DataFrame:
         db["b_"+field] = db[field].map(lambda x: 1 if x in positive_values else 0)
         db = db.drop(field, axis=1)
         db = db.rename(columns={"b_"+field: field})
+    return db
+
+def convert_numeric_to_continuous(db: pandas.DataFrame) -> pandas.DataFrame:
+    for field in numeric_fields:
+        db["c_"+field] = db[field].map(lambda x: float(x))
+        db = db.drop(field, axis=1)
+        db = db.rename(columns={"c_"+field: field})
     return db
 
 def fill_in_binary_missing_info(db: pandas.DataFrame) -> pandas.DataFrame:
