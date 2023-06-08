@@ -11,9 +11,10 @@ from sklearn.neighbors import KNeighborsClassifier
 from sklearn.cluster import DBSCAN
 from sklearn.decomposition import PCA
 from sklearn.preprocessing import StandardScaler
-from sklearn.metrics import accuracy_score, precision_score, recall_score, f1_score, roc_auc_score, mean_squared_error, mean_absolute_error
+from sklearn.metrics import accuracy_score, precision_score, recall_score, f1_score, roc_auc_score, mean_squared_error, mean_absolute_error, r2_score
 from keras.models import Sequential
 from keras.layers import Dense
+from keras.optimizers import Adam
 import matplotlib.pyplot as plt
 
 def clean_db(db_name: str, db_new_name: str):
@@ -35,7 +36,9 @@ def print_binary_scores(t_test, t_prediction):
 
 def print_continuous_scores(t_test, t_prediction):
     print(f"mae: {mean_absolute_error(t_test, t_prediction)}")
+    print(f"mse: {mean_squared_error(t_test, t_prediction)}")
     print(f"rmse: {numpy.sqrt(mean_squared_error(t_test, t_prediction))}")
+    print(f"r2: {r2_score(t_test, t_prediction)}")
 
 #GAIN DECISION TREE
 def gain_tree(f_train, f_test, t_train, t_test):
@@ -151,11 +154,24 @@ def feed_forward_neural_network(f_train, f_test, t_train, t_test, layer_size, hi
         ffnn_model.add(Dense(layer_size, activation='relu'))
     ffnn_model.add(Dense(1, activation='sigmoid'))
 
-    ffnn_model.compile(loss='mean_squared_error', optimizer="adam", metrics=['mean_squared_error'])
+    ffnn_model.compile(loss='mean_squared_error', optimizer=Adam(), metrics=['mean_squared_error'])
 
-    ffnn_model.fit(f_train, t_train, epochs=5, batch_size=40)
+    f_array = numpy.array(f_train)
+    f_u = f_array.mean(axis=0, keepdims=True)
+    f_std = f_array.std(axis=0, keepdims=True)
+    f_array = (f_array - f_u) / f_std
 
+    ffnn_model.fit(f_array, t_train, epochs=10, batch_size=32)
+
+    f_test = (f_test - f_u) / f_std
     t_prediction = ffnn_model.predict(f_test)
+    t_prediction = numpy.round(t_prediction)
+    ctr = 0
+    for t in t_test:
+        if (t != t_prediction[ctr]):
+            print(f"misclassifed index: {t_test.index[ctr]}")
+        ctr+=1
+
     if not verbose:
         sys.stdout = sys.__stdout__
     print(f"###FeedForward NeuralNetwork Scores ({hidden_layers_amount} hidden layers, {layer_size} neurons per):")
@@ -176,7 +192,7 @@ def train_models(db_name: str):
     naive_bayes(f_train, f_test, t_train, t_test)
     k_nearest_neighbors(f_train, f_test, t_train, t_test, 1)
     k_nearest_neighbors(f_train, f_test, t_train, t_test, 5)
-    dbscan_clustering(features, 0.5, 4)
+    dbscan_clustering(features, 0.5, 5)
     dbscan_clustering(features, 0.75, 4)
 
     db = DataCleaning.convert_numeric_to_continuous(db)
@@ -186,10 +202,10 @@ def train_models(db_name: str):
     
     f_train, f_test, t_train, t_test = train_test_split(features, target, test_size=0.33, random_state=42)
 
+    feed_forward_neural_network(f_train, f_test, t_train, t_test, 64, 2, verbose=True)
     feed_forward_neural_network(f_train, f_test, t_train, t_test, 15, 1)
     feed_forward_neural_network(f_train, f_test, t_train, t_test, 30, 2)
-    feed_forward_neural_network(f_train, f_test, t_train, t_test, 45, 3)
-    feed_forward_neural_network(f_train, f_test, t_train, t_test, 15, 5)
+    feed_forward_neural_network(f_train, f_test, t_train, t_test, 30, 3)
 
 
 if __name__ == "__main__":
